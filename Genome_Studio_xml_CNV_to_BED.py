@@ -13,24 +13,26 @@ from datetime import datetime
 print("Programm alustas tööd, palun oota...")
 
 # Serveris asuvate asjade asukohad
-# koondtabeli_asukoht = r'\\srvlaste\Yhendlabor\GE_Illumina kiip\GDA_38_koond.xlsx.xlsx'
-xml_files_folder = r'\\geneetika\Illumina_tsütokiip'
+# koondtabeli_asukoht = r'\\srvlaste\Yhendlabor\GE_Illumina kiip\GDA_38_koond.xlsx'
+# xml_files_folder = r'\\geneetika\Illumina_tsütokiip'
 checked_files_log = "checked_xml_files.log"
 CNV_fail_asukoht = r'\\srvlaste\Yhendlabor\GE_Illumina kiip\CNV_tabel_qSNP_GS_k6ik.bed'
 # Testkeskkond
 koondtabeli_asukoht = "GDA_38_koond.xlsx"
-cnv_failide_kaust = r'C:\Users\Loom\Desktop\Testimiseks_2023_GDA'
-# GS_faili_asukoht = r'\\srvlaste\Yhendlabor\GE_Illumina kiip\Kadi\GS_Kadi.xlsx'
+xml_files_folder = r'C:\Users\Loom\Desktop\Testimiseks_2023_GDA'
+CNV_fail_asukoht = "CNV_tabel_qSNP_GS_k6ik.bed"
 
 
 
 # Siin algab qSNP failide läbivaatus
 
 try:
-    with open(checked_files_list,"r") as f:
+    with open(checked_files_log,"r") as f:
         checked_files_list = [rida.rstrip('\r\n') for rida in list(f)]
+        print(checked_files_list)
 except:
-    checked_files_list = []
+    print("Läbivaadatud failide nimekiri on tühi.")
+    checked_files_log = []
 
 """
 def cnv_importija(asukoht):
@@ -51,8 +53,10 @@ def cnv_importija(asukoht):
 
 def process_xml_files(xml_files_folder, checked_files_list, checked_files_log):
     try:
+        print(xml_files_folder)
         xml_file_locations = []
         for root, dirs, files in os.walk(xml_files_folder, topdown=False):
+            print(root)
             if os.path.basename(root).startswith("GDA") and "Bookmark Analyses" in dirs:
                 bookmark_folder = os.path.join(root, "Bookmark Analyses")
                 for name in os.listdir(bookmark_folder):
