@@ -1,8 +1,8 @@
-# Kõigi automaattuvastatud GRCh38 CNV-de koondfaili loomise vahend
-# Sisend: qSNP cnv-failide kaust, Genome Studio väljavõttefail, GRCh38 leidude koondtabel lisainfo jaoks, läbi vaadatud lahtrite tekstifailid
-# Väljund: automaattuvastatud CNV-de xlsx-fail ja BED-fail.
-# 10.02.2022
-# v3.1 (muudetud BED faili nimi)
+# Tool to combine all xml files from directory to single BED file.
+# Input: Directory with xml files, patient data from excel file, text files to keep track of sample numbers
+# Output: xlsx-file and BED-fail of all automatically detected CNV-s.
+# 16.01.2024
+# v4 (xml based)
 # Kadi Jairus
 
 
@@ -13,14 +13,13 @@ from datetime import datetime
 print("Programm alustas tööd, palun oota...")
 
 # Serveris asuvate asjade asukohad
-koondtabeli_asukoht = r'\\srvlaste\Yhendlabor\GE_Illumina kiip\Koondtabel_38.xlsx'
-cnv_failide_kaust = r'\\geneetika\Illumina_tsütokiip'
-CNV_vaadatud_failid = "vaadatud_failide_nimekiri.txt"
-GS_faili_asukoht = 'GS_Kadi.xlsx'
-GS_vaadatud_read = "vaadatud_ridade_nimekiri_GS.txt"
+# koondtabeli_asukoht = r'\\srvlaste\Yhendlabor\GE_Illumina kiip\GDA_38_koond.xlsx.xlsx'
+xml_files_folder = r'\\geneetika\Illumina_tsütokiip'
+checked_files_log = "checked_xml_files.log"
 CNV_fail_asukoht = r'\\srvlaste\Yhendlabor\GE_Illumina kiip\CNV_tabel_qSNP_GS_k6ik.bed'
-# koondtabeli_asukoht = "Koondtabel_38.xlsx"
-# cnv_failide_kaust = r'D:\Users\loom\Desktop\Pisi\T88\Makrod\Illumina_tsütokiip'
+# Testkeskkond
+koondtabeli_asukoht = "GDA_38_koond.xlsx"
+cnv_failide_kaust = r'C:\Users\Loom\Desktop\Testimiseks_2023_GDA'
 # GS_faili_asukoht = r'\\srvlaste\Yhendlabor\GE_Illumina kiip\Kadi\GS_Kadi.xlsx'
 
 
@@ -28,12 +27,12 @@ CNV_fail_asukoht = r'\\srvlaste\Yhendlabor\GE_Illumina kiip\CNV_tabel_qSNP_GS_k6
 # Siin algab qSNP failide läbivaatus
 
 try:
-    with open(CNV_vaadatud_failid,"r") as f:
-        failide_nimekiri = [rida.rstrip('\r\n') for rida in list(f)]
+    with open(checked_files_list,"r") as f:
+        checked_files_list = [rida.rstrip('\r\n') for rida in list(f)]
 except:
-    failide_nimekiri = []
+    checked_files_list = []
 
-
+"""
 def cnv_importija(asukoht):
     # print(asukoht)
     df = pd.read_csv(asukoht, sep='\t', lineterminator='\n')
@@ -48,6 +47,36 @@ def cnv_importija(asukoht):
     usutavuse_filter = (df['Max. Log BF'] >= 10)
     #  ? return
     return(df.loc[usutavuse_filter])
+"""
+
+def process_xml_files(xml_files_folder, checked_files_list, checked_files_log):
+    try:
+        xml_file_locations = []
+        for root, dirs, files in os.walk(xml_files_folder, topdown=False):
+            if os.path.basename(root).startswith("GDA") and "Bookmark Analyses" in dirs:
+                bookmark_folder = os.path.join(root, "Bookmark Analyses")
+                for name in os.listdir(bookmark_folder):
+                    if name.lower().endswith(".xml") and name.lower() not in checked_files_list:
+                        xml_file_path = os.path.join(bookmark_folder, name)
+                        xml_file_locations.append(xml_file_path)
+                        with open(checked_files_log, 'a') as log_file:
+                            log_file.write('\n' + xml_file_path.lower())
+        # Update the list of checked files
+        checked_files_list.extend([file.lower() for file in xml_file_locations])
+    except Exception as e:
+        print(f"An error occurred while processing XML files: {e}")
+
+# Example usage:
+cnv_files_folder = "/path/to/GDA_root_folder"
+checked_files_list = []  # List to keep track of checked XML files
+checked_files_log = "checked_xml_files.log"  # Log file to store checked XML file paths
+
+process_xml_files(cnv_files_folder, checked_files_list, checked_files_log)
+
+print("xml processed")
+
+
+
 
 try:
     cnv_failide_asukohad = []
