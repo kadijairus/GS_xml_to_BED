@@ -12,15 +12,15 @@ from datetime import datetime
 
 print("Programm alustas tööd, palun oota...")
 
-# Serveris asuvate asjade asukohad
-# koondtabeli_asukoht = r'\\srvlaste\Yhendlabor\GE_Illumina kiip\GDA_38_koond.xlsx'
+# Files in server
+# GDA_patients_table = r'\\srvlaste\Yhendlabor\GE_Illumina kiip\GDA_38_koond.xlsx'
 # xml_files_folder = r'\\geneetika\Illumina_tsütokiip'
 checked_files_log = "checked_xml_files.log"
-CNV_fail_asukoht = r'\\srvlaste\Yhendlabor\GE_Illumina kiip\CNV_tabel_qSNP_GS_k6ik.bed'
-# Testkeskkond
-koondtabeli_asukoht = "GDA_38_koond.xlsx"
+# CNV_file_location = r'\\srvlaste\Yhendlabor\GE_Illumina kiip\CNV_tabel_qSNP_GS_k6ik.bed'
+# Files in test environment
+GDA_patients_table = "GDA_38_koond.xlsx"
 xml_files_folder = r'C:\Users\Loom\Desktop\Testimiseks_2023_GDA'
-CNV_fail_asukoht = "CNV_tabel_qSNP_GS_k6ik.bed"
+CNV_file_location = "CNV_tabel_qSNP_GS_k6ik.bed"
 
 
 
@@ -56,8 +56,7 @@ def process_xml_files(xml_files_folder, checked_files_list, checked_files_log):
         print(xml_files_folder)
         xml_file_locations = []
         for root, dirs, files in os.walk(xml_files_folder, topdown=False):
-            print(root)
-            if os.path.basename(root).startswith("GDA") and "Bookmark Analyses" in dirs:
+            if any(os.path.basename(d).startswith("GDA") for d in root.split(os.path.sep)) and "Bookmark Analyses" in dirs:
                 bookmark_folder = os.path.join(root, "Bookmark Analyses")
                 for name in os.listdir(bookmark_folder):
                     if name.lower().endswith(".xml") and name.lower() not in checked_files_list:
@@ -67,35 +66,19 @@ def process_xml_files(xml_files_folder, checked_files_list, checked_files_log):
                             log_file.write('\n' + xml_file_path.lower())
         # Update the list of checked files
         checked_files_list.extend([file.lower() for file in xml_file_locations])
+        return xml_file_locations
     except Exception as e:
         print(f"An error occurred while processing XML files: {e}")
 
-# Example usage:
-cnv_files_folder = "/path/to/GDA_root_folder"
-checked_files_list = []  # List to keep track of checked XML files
-checked_files_log = "checked_xml_files.log"  # Log file to store checked XML file paths
 
-process_xml_files(cnv_files_folder, checked_files_list, checked_files_log)
+xml_file_locations = process_xml_files(xml_files_folder, checked_files_list, checked_files_log)
 
 print("xml processed")
-
-
-
+print(xml_file_locations)
 
 try:
-    cnv_failide_asukohad = []
-    for root, dirs, files in os.walk(cnv_failide_kaust, topdown=False):
-        for name in files:
-            if name.lower().endswith(".cnv") and name.lower() not in failide_nimekiri:
-                cnv_failide_asukohad.append(os.path.join(root, name))
-                with open(CNV_vaadatud_failid, 'a') as f:
-                    f.write('\n' + name.lower())
-except:
-    print("Tekkis probleem cnv-failide asukohtade läbivaatamisel")
-
-try:
-    cnv_koondtabel = []
-    if len(cnv_failide_asukohad) > 0:
+    cnvs_from_xml = []
+    if len(xml_files_locations) > 0:
         for cnv_faili_asukoht in cnv_failide_asukohad:
             yhe_patsiendi_cnvd = cnv_importija(cnv_faili_asukoht)
             print(f"Õnnestus import asukohast {cnv_faili_asukoht}")
