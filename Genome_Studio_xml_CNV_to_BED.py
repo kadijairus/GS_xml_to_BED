@@ -9,6 +9,7 @@
 import os
 import pandas as pd
 from datetime import datetime
+import xml.etree.ElementTree as ET
 
 print("Programm alustas tööd, palun oota...")
 
@@ -32,24 +33,7 @@ try:
         print(checked_files_list)
 except:
     print("Läbivaadatud failide nimekiri on tühi.")
-    checked_files_log = []
-
-"""
-def cnv_importija(asukoht):
-    # print(asukoht)
-    df = pd.read_csv(asukoht, sep='\t', lineterminator='\n')
-    # Edasise sorteerimise tarbeks sundida tulp numbriks, "apply" ei sobi, sest algandmetes sees "date" kujul vigu
-    df[['Max. Log BF','Chromosome']] = df[['Max. Log BF','Chromosome']].apply(pd.to_numeric, errors='coerce')
-    # Duplikaatide kergemaks eristamiseks proovide ID-d ka sees
-    df = df.loc[:,
-        ['Sample Name','Chromosome',
-        'Start Position (bp)','End Position (bp)',
-        'Length (bp)','Copy Number','Max. Log BF',
-        'Start Probe ID','End Probe ID']]
-    usutavuse_filter = (df['Max. Log BF'] >= 10)
-    #  ? return
-    return(df.loc[usutavuse_filter])
-"""
+    checked_files_list = []
 
 def process_xml_files(xml_files_folder, checked_files_list, checked_files_log):
     try:
@@ -76,18 +60,114 @@ xml_file_locations = process_xml_files(xml_files_folder, checked_files_list, che
 print("xml processed")
 print(xml_file_locations)
 
-try:
+"""
+def process_xml_files_folder(xml_files_folder, checked_files_list):
+    try:
+        print(xml_files_folder)
+        xml_file_locations = []
+        for root, dirs, files in os.walk(xml_files_folder, topdown=False):
+            if any(os.path.basename(d).startswith("GDA") for d in root.split(os.path.sep)) and "Bookmark Analyses" in dirs:
+                bookmark_folder = os.path.join(root, "Bookmark Analyses")
+                for name in os.listdir(bookmark_folder):
+                    if name.lower().endswith(".xml") and name.lower() not in checked_files_list:
+                        xml_file_path = os.path.join(bookmark_folder, name)
+                        xml_file_locations.append(xml_file_path)
+                        with open(checked_files_log, 'a') as log_file:
+                            log_file.write('\n' + xml_file_path.lower())
+        # Update the list of checked files
+        checked_files_log.extend([file.lower() for file in xml_file_locations])
+        return xml_file_locations
+    except Exception as e:
+        print(f"An error occurred while processing XML files: {e}")
+
+
+xml_file_locations = process_xml_files_folder(xml_files_folder, checked_files_list)
+
+print("xml processed")
+print(xml_file_locations)
+"""
+
+def import_cnv_data_from_xml(xml_file_location):
+    """Function to import CNV data from an XML file into a Pandas DataFrame."""
+    tree = ET.parse(xml_file_location)
+    root = tree.getroot()
+
+    data = []
+    for cnv_elem in root.findall('.//cnv'):
+        sample_id = cnv_elem.find('sample_id').text
+        chr_num = int(cnv_elem.find('chr_num').text)
+        base_start_pos = int(cnv_elem.find('base_start_pos').text)
+        base_end_pos = int(cnv_elem.find('base_end_pos').text)
+        value = float(cnv_elem.find('value').text)
+
+        data.append([sample_id, chr_num, base_start_pos, base_end_pos, value])
+
+    columns = ['sample_id', 'chr_num', 'base_start_pos', 'base_end_pos', 'value']
+    df = pd.DataFrame(data, columns=columns)
+    return df
+
+
+def extract_data_from_xml_file_locations(xml_file_locations):
+    """Using the locations of newest xml-file(s), get XML to DataFrame."""
     cnvs_from_xml = []
+
+    try:
+        for xml_file_location in xml_file_locations:
+            cnvs_of_single_patient = import_cnv_data_from_xml(xml_file_location)
+            print(f"Successfully imported data from {xml_file_location}")
+            cnvs_from_xml.append(cnvs_of_single_patient)
+
+        cnvs_from_xml = pd.concat(cnvs_from_xml, ignore_index=True)
+        return cnvs_from_xml
+
+    except Exception as e:
+        print(f"Error: {e}")
+        print("An error occurred while processing CNV files.")
+        return None
+
+
+# Example usage:
+result_df = extract_data_from_xml_file_locations(xml_file_locations)
+
+# Check if the result is not None before further processing
+if result_df is not None:
+    # Continue with further processing or analysis
+    print(result_df.head())
+
+
+    """
+    def cnv_importija(asukoht):
+        # print(asukoht)
+        df = pd.read_csv(asukoht, sep='\t', lineterminator='\n')
+        # Edasise sorteerimise tarbeks sundida tulp numbriks, "apply" ei sobi, sest algandmetes sees "date" kujul vigu
+        df[['Max. Log BF','Chromosome']] = df[['Max. Log BF','Chromosome']].apply(pd.to_numeric, errors='coerce')
+        # Duplikaatide kergemaks eristamiseks proovide ID-d ka sees
+        df = df.loc[:,
+            ['Sample Name','Chromosome',
+            'Start Position (bp)','End Position (bp)',
+            'Length (bp)','Copy Number','Max. Log BF',
+            'Start Probe ID','End Probe ID']]
+        usutavuse_filter = (df['Max. Log BF'] >= 10)
+        #  ? return
+        return(df.loc[usutavuse_filter])
+    """
+
+"""
+def extract_data_from_xlm_file_locations(xml_file_locations):
+    "Using the locations of newest xml-file(s), get xml to dataframe."
+    cnvs_from_xlm = []
     if len(xml_files_locations) > 0:
-        for cnv_faili_asukoht in cnv_failide_asukohad:
-            yhe_patsiendi_cnvd = cnv_importija(cnv_faili_asukoht)
-            print(f"Õnnestus import asukohast {cnv_faili_asukoht}")
-            cnv_koondtabel.append(yhe_patsiendi_cnvd)
-        cnv_koondtabel = pd.concat(cnv_koondtabel, ignore_index=True)
+        for xml_file_location in xml_file_locations:
+            cnvs_from_xlm = import_cnv_data_from_xml(xml_file_location)
+            print(f"Õnnestus import asukohast {xml_file_location}")
+            cnvs_from_xlm.append(cnvs_of_single_patient)
+        cnvs_from_xlm = pd.concat(cnvs_of_all_patients, ignore_index=True)
     else:
         print("Uusi cnv-faile ei ole")
 except:
     print("Tekkis tõrge cnv-failidest koondtabeli tegemisel")
+
+"""
 
 try:
     cnv_koondtabel['Length (bp)'] = cnv_koondtabel['Length (bp)'].apply(pd.to_numeric, errors='coerce')
