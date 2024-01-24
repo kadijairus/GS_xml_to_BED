@@ -95,10 +95,10 @@ def import_cnv_data_from_xml(xml_file_location):
     data = []
     for cnv_elem in root.findall('.//bookmark'):
         sample_id = cnv_elem.find('sample_id').text
-        chr_num = int(cnv_elem.find('chr_num').text)
+        chr_num = cnv_elem.find('chr_num').text
         base_start_pos = int(cnv_elem.find('base_start_pos').text)
         base_end_pos = int(cnv_elem.find('base_end_pos').text)
-        value = float(cnv_elem.find('value').text)
+        value = int(cnv_elem.find('value').text)
 
         data.append([sample_id, chr_num, base_start_pos, base_end_pos, value])
 
@@ -132,7 +132,7 @@ result_df = extract_data_from_xml_file_locations(xml_file_locations)
 # Check if the result is not None before further processing
 if result_df is not None:
     # Continue with further processing or analysis
-    print(result_df.head())
+    print(result_df.head(100))
 
 
     """
