@@ -93,7 +93,7 @@ def import_cnv_data_from_xml(xml_file_location):
     root = tree.getroot()
 
     data = []
-    for cnv_elem in root.findall('.//cnv'):
+    for cnv_elem in root.findall('.//bookmark'):
         sample_id = cnv_elem.find('sample_id').text
         chr_num = int(cnv_elem.find('chr_num').text)
         base_start_pos = int(cnv_elem.find('base_start_pos').text)
