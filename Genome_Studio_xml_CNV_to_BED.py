@@ -1,7 +1,7 @@
 # Tool to combine all xml files from directory to single BED file.
 # Input: Directory with xml files, patient data from Excel file, text files to keep track of sample numbers
 # Output: xlsx-file and BED-fail of all automatically detected CNV-s.
-# 27.01.2024
+# 28.01.2024
 # v4 (xml based)
 # Kadi Jairus
 
@@ -28,14 +28,14 @@ CNV_file_location = "GDA_CNV_tabel_GS_k6ik.bed"
 try:
     with open(checked_files_log,"r") as f:
         checked_files_list = [rida.rstrip('\r\n') for rida in list(f)]
-        print(checked_files_list)
+        # print(checked_files_list)
 except:
     print("Läbivaadatud failide nimekiri on tühi.")
     checked_files_list = []
 
 def process_xml_files(xml_files_folder, checked_files_list, checked_files_log):
     try:
-        print(xml_files_folder)
+        # print(xml_files_folder)
         xml_file_locations = []
         for root, dirs, files in os.walk(xml_files_folder, topdown=False):
             if any(os.path.basename(d).startswith("GDA") for d in root.split(os.path.sep)) and "Bookmark Analyses" in dirs:
