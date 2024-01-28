@@ -136,6 +136,19 @@ if df_new_cnvs is not None:
     print(df_new_cnvs.head(100))
     df_all_cnvs_sorted = append_new_to_old_cnv_data(df_new_cnvs)
 
+def remove_duplicate_cnvs(df):
+    """Keep only unique CNV-s of the same patient."""
+    # Find duplicates based on specified columns
+    duplicate_rows = df[df.duplicated(subset=['Sample Name', 'Chromosome', 'Start Position (bp)', 'End Position (bp)'], keep=False)]
+
+    # Count number of duplicate rows
+    num_duplicates = len(duplicate_rows)
+
+    # Remove duplicates and keep the first occurrence
+    df_unique = df.drop_duplicates(subset=['Sample Name', 'Chromosome', 'Start Position (bp)', 'End Position (bp)'], keep='first')
+    print(f"Number of removed duplicates: {num_duplicates}")
+    return df_unique
+
 
 def sobimatute_CNVde_eemaldaja (vastusekuupaev,aberratsioon):
     # Eemaldada kehva DNA kvaliteediga artefakte täis proovid ("korrata","tühistatud","analüüsimatu")
@@ -215,8 +228,8 @@ def make_bed_file_from_df(df):
         print(f"Tekkis probleem vana BED-faili ümbernimetamisel ja uue põhja loomisel {e}")
         return None
 
-
-df_with_patient_data = add_patient_data_to_cnv(df_all_cnvs_sorted)
+df = remove_duplicate_cnvs(df_all_cnvs_sorted)
+df_with_patient_data = add_patient_data_to_cnv(df)
 print("df_with_patient_data:")
 print(df_with_patient_data.head(50))
 # df_with_labeled_patient_data
