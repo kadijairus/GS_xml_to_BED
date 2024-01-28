@@ -22,11 +22,8 @@ checked_files_log = "checked_xml_files.log"
 GDA_patients_table = "GDA_38_koond.xlsx"
 xml_files_folder = r'C:\Users\Admin\Desktop\Testimiseks_2023_GDA'
 # xml_files_folder = r'C:\Users\Loom\Desktop\Testimiseks_2023_GDA'
-CNV_file_location = "CNV_tabel_qSNP_GS_k6ik.bed"
+CNV_file_location = "GDA_CNV_tabel_GS_k6ik.bed"
 
-
-
-# Siin algab qSNP failide läbivaatus
 
 try:
     with open(checked_files_log,"r") as f:
@@ -82,7 +79,8 @@ def import_cnv_data_from_xml(xml_file_location):
         if size >= 30000:
             data.append([sample_id, chr_num, base_start_pos, base_end_pos, size, value])
 
-    columns = ['sample_id', 'chr_num', 'base_start_pos', 'base_end_pos', 'size', 'value']
+    # columns = ['sample_id', 'chr_num', 'base_start_pos', 'base_end_pos', 'size', 'value']
+    columns = ['Sample Name', 'Chromosome', 'Start Position (bp)', 'End Position (bp)', 'Length (bp)', 'Copy Number']
     df = pd.DataFrame(data, columns=columns)
     return df
 
@@ -111,21 +109,17 @@ chr_num_order = [
 ]
 
 
-def custom_sort_key(row):
-    return chr_num_order.index(row['chr_num']), row['base_start_pos']
-
-
 def append_new_to_old_cnv_data(df_new_cnvs):
     try:
         # Read existing CNVs from Excel file
         df_old_cnvs = pd.read_excel("Genome_Studio_k6ik_CNVd.xlsx")
         df_cnvs_appended = pd.concat([df_old_cnvs, df_new_cnvs], ignore_index=True)
-        print(df_cnvs_appended)
+        # print(df_cnvs_appended)
         current_time = datetime.now().strftime("%Y-%m-%d_%H-%M")
         os.rename("Genome_Studio_k6ik_CNVd.xlsx", f"Genome_Studio_k6ik_CNVd_backup_{current_time}.xlsx")
         # Convert chr_num to categorical data with custom ordering.
-        df_cnvs_appended['chr_num'] = pd.Categorical(df_cnvs_appended['chr_num'], categories=chr_num_order, ordered=True)
-        df_sorted = df_cnvs_appended.sort_values(by=['chr_num', 'base_start_pos', 'base_end_pos'])
+        df_cnvs_appended['Chromosome'] = pd.Categorical(df_cnvs_appended['Chromosome'], categories=chr_num_order, ordered=True)
+        df_sorted = df_cnvs_appended.sort_values(by=['Chromosome', 'Start Position (bp)', 'End Position (bp)'])
         df_sorted.to_excel("Genome_Studio_k6ik_CNVd.xlsx", index=False)
         print('Kõigi automaattuvastatud CNV-de Exceli fail uuendatud')
         return df_sorted
@@ -138,28 +132,9 @@ df_new_cnvs = extract_data_from_xml_file_locations(xml_file_locations)
 # Check if the result is not None before further processing
 if df_new_cnvs is not None:
     # Continue with further processing or analysis
+    print("Uued CNV-d on:")
     print(df_new_cnvs.head(100))
     df_all_cnvs_sorted = append_new_to_old_cnv_data(df_new_cnvs)
-
-def make_bed_file_from_df(df):
-    """Create BED-file from filtered all CNV-s dataframe. """
-    try:
-        os.rename("CNV_tabel_GDA_GS_k6ik.bed",f"CNV_tabel_GDA_GS_k6ik_backup_{praegune_aeg}.bed")
-        # Alguses teha tühi fail vajaliku päisega. Sellele pannakse lõpuks DataFrame otsa
-        with open("CNV_tabel_GDA_GS_k6ik.bed", 'a') as f:
-            f.write('track db="hg38" name="GenK k6ik CNVd" description="Geneetikakeskuse qSNP ja Genome Studio CNV-d. GRCh38" itemRgb="On"' + '\n')
-        # Duplikaatide esile tõstmiseks saaks kasutada alguse ja lõpu proovide ID tulpi
-        df = df.loc[:,['Chromosome','Start Position (bp)','End Position (bp)',
-                       'Sample Name','Length (bp)','Copy Number','Start Position (bp)','End Position (bp)']]
-    except:
-        print("Tekkis probleem vana qSNP BED-faili ümbernimetamisel ja uue põhja loomisel")
-
-    try:
-        # Plaadi nr ja muu lisainfo tuleb GRCh38 koondtabelist serveris
-        df2 = pd.read_excel(koondtabeli_asukoht)
-        df2 = df2.rename(columns={'SampleID eLabor':'Sample Name'})
-    except:
-        print("Tekkis probleem BED-faili tooriku eeltöös: GRCh38 leidude koondtabeli impordil")
 
 
 def sobimatute_CNVde_eemaldaja (vastusekuupaev,aberratsioon):
@@ -171,38 +146,85 @@ def sobimatute_CNVde_eemaldaja (vastusekuupaev,aberratsioon):
         return None
     else:
         return "korras"
-    
-    
-try:
-    df2['Sobib'] = df2.apply(lambda x: sobimatute_CNVde_eemaldaja(x.Vastus, x.Aberratsioon), axis=1)
-except:
-    print("Tekkis probleem sobimatute CNV-de eemaldamisel BED-faili toorikust")
-    
-try:
-    df = pd.merge(df,df2[['Sample Name','Plaat','Patsient','Sobib']],how='left',on='Sample Name')
-    df = df.dropna(subset=['Sobib'])
-    df[['Chromosome','Plaat','Copy Number']] = df[['Chromosome','Plaat','Copy Number']].fillna(0.0).astype(int)
-except:
-    print("Tekkis probleem BED-tooriku ja CRCh38 koondtabeli ühendamisel")
 
 
-# Tavapatsientidest eristada hematoloogilised ja emad-isad
-def patsiendi_tyybiti_sorteerija(patsient):
-    if patsient[:3] == 'loo':
+def add_patient_data_to_cnv(df):
+    """Add patient data and filter."""
+    try:
+        """Get additional patient data from Excel"""
+        df2 = pd.read_excel(GDA_patients_table)
+        # Convert chr_num to categorical data with custom ordering.
+        df['Chromosome'] = pd.Categorical(df['Chromosome'], categories=chr_num_order, ordered=True)
+        print(df2)
+        df2.to_csv("Vaheseis_GDA_patsiendid.csv", header=1, index=None, sep='\t',mode='a')
+        df2 = df2.rename(columns={'SampleID eLabor':'Sample Name'})
+    except Exception as e:
+        print(f"Tekkis probleem BED-faili tooriku eeltöös: GDA koondtabeli impordil: {e}")
+
+    try:
+        df2['Sobib'] = df2.apply(lambda x: sobimatute_CNVde_eemaldaja(x.Vastuse_kp, x.Aberratsioon), axis=1)
+    except Exception as e:
+        print(f"Tekkis probleem probleemsete CNV-de eemaldamisel: {e}")
+
+    try:
+        df = pd.merge(df,df2[['Sample Name','Plaat','Patsient','Sobib']],how='left',on='Sample Name')
+        # df = df.dropna(subset=['Sobib'])
+        df.dropna(subset=['Sobib', 'Chromosome', 'Plaat', 'Copy Number'], inplace=True)
+        # df[['Chromosome','Plaat','Copy Number']] = df[['Chromosome','Plaat','Copy Number']].fillna(0.0).astype(int)
+        return df
+    except Exception as e:
+        print(f"Tekkis probleem BED-tooriku ja GDA koondtabeli ühendamisel: {e}")
+
+
+def shorten_patient_type(patient):
+    """Add label if patient is a (supposedly normal) parent or cancer patient."""
+    if patient[:3] == 'loo':
         return 'loode/'
-    if patsient[:3] == 'hem':
-        return 'hematol./'
-    if patsient[:3] == 'ema' or patsient[:3] == 'isa':
+    if patient[:7] == 'hematol' or patient[:7] == 'tahke k':
+        return 'onko/'
+    if patient[:3] == 'ema' or patient[:3] == 'isa':
         return 'vanem/'    
     else:
         return ''
 
-try:
-    df['Patsient'] = df['Patsient'].astype(str).apply(patsiendi_tyybiti_sorteerija)
-    df['Sample Name'] = df['Patsient'] + df['Plaat'].astype(str) + '/' + df['Sample Name']
-    df = df.drop(columns=['Plaat','Patsient','Sobib'])
-except:
-    print("Tekkis probleem BED-toorikus patsientide tüübiti sorteerimisel")
+def add_label_to_special_patient_types(df):
+    """Add label if patient is a (supposedly normal) parent or cancer patient."""
+    try:
+        df['Patsient'] = df['Patsient'].astype(str).apply(shorten_patient_type)
+        df['Sample Name'] = df['Patsient'] + df['Plaat'].astype(str) + '/' + df['Sample Name']
+        df = df.drop(columns=['Plaat','Patsient','Sobib'])
+        return df
+    except Exception as e:
+        print(f"Tekkis probleem BED-toorikus patsientide tüübiti sorteerimisel: {e}")
+        return None
+
+
+def make_bed_file_from_df(df):
+    """Create BED-file from filtered all CNV-s dataframe. """
+    try:
+        praegune_aeg = datetime.now().strftime("%Y-%m-%d_%H-%M")
+        os.rename("GDA_CNV_tabel_GS_k6ik.bed",f"GDA_CNV_tabel_GS_k6ik_backup_{praegune_aeg}.bed")
+        # Alguses teha tühi fail vajaliku päisega. Sellele pannakse lõpuks DataFrame otsa
+        with open("GDA_CNV_tabel_GS_k6ik.bed", 'a') as f:
+            f.write('track db="hg38" name="GenK k6ik GDA CNVd" description="Geneetikakeskuse automaattuvastatud GDA Genome Studio CNV-d. GRCh38" itemRgb="On"' + '\n')
+        # Duplikaatide esile tõstmiseks saaks kasutada alguse ja lõpu proovide ID tulpi
+        df = df.loc[:,['Chromosome','Start Position (bp)','End Position (bp)',
+                       'Sample Name','Length (bp)','Copy Number','Start Position (bp)','End Position (bp)']]
+        return df
+    except Exception as e:
+        print(f"Tekkis probleem vana BED-faili ümbernimetamisel ja uue põhja loomisel {e}")
+        return None
+
+
+df_with_patient_data = add_patient_data_to_cnv(df_all_cnvs_sorted)
+print("df_with_patient_data:")
+print(df_with_patient_data.head(50))
+# df_with_labeled_patient_data
+df = add_label_to_special_patient_types(df_with_patient_data)
+print("df_with_labeled_patient_data")
+print(df.head(50))
+
+df = make_bed_file_from_df(df)
 
 
 # Koopia-arvu lahtris tohivad olla ainult numbrid
@@ -223,7 +245,7 @@ try:
     df.loc[:,'Length (bp)'] = 0
     df.loc[:,'Copy Number'] = "."
     # Asendus 23->X tuleb teha lõpus, et sorteerimisvõimekust säilitada
-    df['Chromosome'] = df['Chromosome'].replace({23:"X",24:"Y"})
+    # df['Chromosome'] = df['Chromosome'].replace({23:"X",24:"Y"})
     # kogu tulp vaja stringiks teha, muidu ei saa "chr" juurde kirjutada
     df['Chromosome'] = df['Chromosome'].astype(str)
     df['Chromosome'] = "chr" + df['Chromosome']
@@ -236,7 +258,7 @@ except:
 #    print("Tekkis probleem teises kaustas oleva qSNP/GS BED-faili loomisega")
     
 try:
-    df.to_csv(r'CNV_tabel_qSNP_GS_k6ik.bed', header=0, index=None, sep='\t', mode='a')
+    df.to_csv(r'GDA_CNV_tabel_GS_k6ik.bed', header=0, index=None, sep='\t', mode='a')
     print('Valmis!')
 except:
     print("Tekkis probleem uue BED-faili kirjutamisel")
