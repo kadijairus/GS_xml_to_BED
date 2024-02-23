@@ -1,8 +1,8 @@
 # Tool to combine all xml files from directory to single BED file.
 # Input: Directory with xml files, patient data from Excel file, text files to keep track of sample numbers
 # Output: xlsx-file and BED-fail of all automatically detected CNV-s.
-# 28.01.2024
-# v4 (xml based)
+# 22.02.2024
+# v4.1 (GDA int format fix, without .0)
 # Kadi Jairus
 
 
@@ -14,13 +14,13 @@ import xml.etree.ElementTree as ET
 print("Programm alustas tööd, palun oota...")
 
 # Files in server
-# GDA_patients_table = r'\\srvlaste\Yhendlabor\GE_Illumina kiip\GDA_38_koond.xlsx'
-# xml_files_folder = r'\\geneetika\Illumina_tsütokiip'
+GDA_patients_table = r'\\srvlaste\Yhendlabor\GE_Illumina kiip\GDA_38_koond.xlsx'
+xml_files_folder = r'\\geneetika\Illumina_tsütokiip'
 checked_files_log = "checked_xml_files.log"
-# CNV_file_location = r'\\srvlaste\Yhendlabor\GE_Illumina kiip\CNV_tabel_qSNP_GS_k6ik.bed'
+CNV_file_location = r'\\srvlaste\Yhendlabor\GE_Illumina kiip\CNV_tabel_qSNP_GS_k6ik.bed'
 # Files in test environment
-GDA_patients_table = "GDA_38_koond.xlsx"
-xml_files_folder = r'C:\Users\Admin\Desktop\Testimiseks_2023_GDA'
+# GDA_patients_table = "GDA_38_koond.xlsx"
+# xml_files_folder = r'C:\Users\Admin\Desktop\Testimiseks_2023_GDA'
 # xml_files_folder = r'C:\Users\Loom\Desktop\Testimiseks_2023_GDA'
 CNV_file_location = "GDA_CNV_tabel_GS_k6ik.bed"
 
@@ -28,7 +28,7 @@ CNV_file_location = "GDA_CNV_tabel_GS_k6ik.bed"
 try:
     with open(checked_files_log,"r") as f:
         checked_files_list = [rida.rstrip('\r\n') for rida in list(f)]
-        # print(checked_files_list)
+        print(checked_files_list)
 except:
     print("Läbivaadatud failide nimekiri on tühi.")
     checked_files_list = []
@@ -92,9 +92,10 @@ def extract_data_from_xml_file_locations(xml_file_locations):
     try:
         for xml_file_location in xml_file_locations:
             cnvs_of_single_patient = import_cnv_data_from_xml(xml_file_location)
+            print("Edukas import")
             print(f"Successfully imported data from {xml_file_location}")
             cnvs_from_xml.append(cnvs_of_single_patient)
-
+            print(cnvs_from_xml)
         cnvs_from_xml = pd.concat(cnvs_from_xml, ignore_index=True)
         return cnvs_from_xml
     except Exception as e:
@@ -204,7 +205,7 @@ def add_label_to_special_patient_types(df):
     """Add label if patient is a (supposedly normal) parent or cancer patient."""
     try:
         df['Patsient'] = df['Patsient'].astype(str).apply(shorten_patient_type)
-        df['Sample Name'] = df['Patsient'] + df['Plaat'].astype(str) + '/' + df['Sample Name']
+        df['Sample Name'] = df['Patsient'] + "GDA" + df['Plaat'].astype(str).replace(".0","") + '/' + df['Sample Name']
         df = df.drop(columns=['Plaat','Patsient','Sobib'])
         return df
     except Exception as e:
