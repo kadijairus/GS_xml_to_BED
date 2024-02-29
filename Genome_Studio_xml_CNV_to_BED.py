@@ -1,8 +1,8 @@
 # Tool to combine all xml files from directory to single BED file.
 # Input: Directory with xml files, patient data from Excel file, text files to keep track of sample numbers
 # Output: xlsx-file and BED-fail of all automatically detected CNV-s.
-# 22.02.2024
-# v4.1 (GDA int format fix, without .0)
+# 29.02.2024
+# v4.2 (GDA int format fix, without .0)
 # Kadi Jairus
 
 
@@ -205,8 +205,13 @@ def add_label_to_special_patient_types(df):
     """Add label if patient is a (supposedly normal) parent or cancer patient."""
     try:
         df['Patsient'] = df['Patsient'].astype(str).apply(shorten_patient_type)
-        df['Sample Name'] = df['Patsient'] + "GDA" + df['Plaat'].astype(str).replace(".0","") + '/' + df['Sample Name']
+        df['Plaat'] = df['Plaat'].apply(lambda x: str(int(x)) if isinstance(x, (int, float)) else x)
+        df['Sample Name'] = df['Patsient'] + "GDA" + df['Plaat'] + '/' + df['Sample Name']
         df = df.drop(columns=['Plaat','Patsient','Sobib'])
+        
+        #df['Patsient'] = df['Patsient'].astype(str).apply(shorten_patient_type)
+        #df['Sample Name'] = df['Patsient'] + "GDA" + df['Plaat'].astype(str).replace(".0","") + '/' + df['Sample Name']
+        #df = df.drop(columns=['Plaat','Patsient','Sobib'])
         return df
     except Exception as e:
         print(f"Tekkis probleem BED-toorikus patsientide tüübiti sorteerimisel: {e}")
